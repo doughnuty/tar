@@ -3,11 +3,26 @@
 static void print_options(struct Options *options ) // Testing function to check if Options were perceived correctly
 {
     printf( "============TAR_OPTIONS============\n" );
-    printf( "Creation node: %s\n", options -> create ? "true" : "false" );
-    printf( "Extraction node: %s\n", options -> extract ? "true" : "false" );
-    printf( "List node: %s\n", options -> list ? "true" : "false" );
-    printf( "Append node: %s\n", options -> append ? "true" : "false" );
-    printf( "Append new node: %s\n", options -> append_new ? "true" : "false" );
+
+    switch (options->mod)
+    {
+        case 'c':
+            printf("Creation node: true\n");
+            break;
+        case 'x':
+            printf("Extraction node: true\n");
+            break;
+        case 't':
+            printf("List node: true\n");
+            break;
+        case 'r':
+            printf("Append node: true\n");
+            break;
+        case 'u':
+            printf("Append new node: true\n");
+            break;
+    }
+
     printf( "Archive name: %s\n", options -> archname);
     printf("Path changed to %s\n", options -> path);
 
@@ -34,12 +49,7 @@ size_t getLength(const char *str){
 struct Options *clear(void)
 {
     struct Options *opts = malloc(sizeof(struct Options));
-    opts -> create = false;
-    opts -> extract = false;
-    opts -> list = false;
-    opts -> append_new = false;
-    opts -> append = false;
-    opts -> argcount = 0;
+    opts -> mod = 0;
     opts -> path = NULL;
     opts -> archname = NULL;
     opts -> archfd = 0;
@@ -52,13 +62,6 @@ struct Options *clear(void)
 //void listContents(char** files); // Called if -t parameter passed
 
 //bool checkOpts(struct Options opts, int err); // Checks whether options were appropriately written
-
-int createTar(char* tarname) // Creates/opens file based on the name passed by -f and returns its file descriptor
-{
-    int fd = open(tarname, O_CREAT, O_RDWR);
-
-    return fd;
-}
 
 int checkName (char* name)
 {
@@ -108,8 +111,21 @@ int error(int errnum) // Print the error message
     }
     return 1;
 }
+int getArchfd(char* archname, bool is_create)
+{
+    int fd_archive;
+    int flags;
+    const mode_t DEFAULT_CREAT_MODE = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 
-//int setArg(char** argv, int i, struct Options *opts);
+    if(is_create)
+        flags = O_CREAT | O_WRONLY | O_TRUNC;
+    else
+        flags = O_WRONLY;
+
+    fd_archive = open(archname, flags, DEFAULT_CREAT_MODE);
+
+    return fd_archive;
+}
 struct Options getOpts(int argc, char *argv[]) /* Parse options, opens tar file if exists and writes file names
                                                 // if -f correctly specified, address createTar to get archfd
                                                 // otherwise print error message
@@ -127,29 +143,18 @@ struct Options getOpts(int argc, char *argv[]) /* Parse options, opens tar file 
         {
             int length = getLength(argv[i]);
             for(int j = 1; j < length; j++){
-                switch(argv[i][j])
-                {
-                    case 'c':
-                        opts->create = true;
-                        opts->argcount += 1;
-                        break;
-                    case 'r':
-                        opts->append = true;
-                        opts->argcount += 1;
-                        break;
-                    case 't':
-                        opts->list = true;
-                        opts->argcount += 1;
-                        break;
-                    case 'u':
-                        opts->append_new = true;
-                        opts->argcount += 1;
-                        break;
-                    case 'x':
-                        opts->extract = true;
-                        opts->argcount += 1;
-                        break;
-                    case 'C':
+                    if (argv[i][j] == 'r' || argv[i][j] == 'c' || argv[i][j] == 't' || argv[i][j] == 'u' || argv[i][j] == 'x')
+                        {
+                        if(opts->mod != 0) {
+                            printf("Please specify only one of the following: crtux\n");
+                            opts -> error += 1;
+                            return opts[0];
+                        }
+                        opts -> mod = argv[i][j];
+                        }
+
+                    else if (argv[i][j] == 'C')
+                        {
                         if(j != length - 1)
                         {
                             error(1);
@@ -159,8 +164,10 @@ struct Options getOpts(int argc, char *argv[]) /* Parse options, opens tar file 
                         if(checkName(argv[i+1]) == 0)
                             opts->path = argv[i+1];
                         i++;
-                        break;
-                    case 'f':
+                        }
+
+                    else if (argv[i][j] == 'f')
+                        {
                         if(j != length - 1)
                         {
                             error(1);
@@ -168,10 +175,9 @@ struct Options getOpts(int argc, char *argv[]) /* Parse options, opens tar file 
                             return opts[0];
                         }
                         //if(checkName(argv[i+1]) == 1)
-                            opts->archname = argv[i+1];
+                        opts->archname = argv[i+1];
                         i++;
-                        break;
-                }
+                        }
             }
         }
         else
@@ -200,11 +206,7 @@ struct Options getOpts(int argc, char *argv[]) /* Parse options, opens tar file 
         printf("tar: Refusing to read archive contents from terminal (missing -f option?)\n");
         opts -> error += 1;
     }
-    if (opts -> argcount > 1)
-    {
-        printf("Please specify only one of the following: crtux\n");
-        opts -> error += 1;
-    }
+    else opts->archfd = getArchfd(opts->archname, opts->mod == 'c');
     return opts[0];
 }
 
