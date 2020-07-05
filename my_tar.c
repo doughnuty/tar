@@ -15,7 +15,7 @@ int main(int argc, char *argv[]){
 
     if (opts.create)
     {
-        rv += create(opts.archfd, opts.files); // Create tar based on its file descriptor and fill with the contents
+        rv += create(opts.archfd, opts.files, opts.fcount); // Create tar based on its file descriptor and fill with the contents
     }
 
     else if (opts.extract)
@@ -28,7 +28,7 @@ int main(int argc, char *argv[]){
         rv += list(opts.archfd, opts.files); // List tar contents
     }
 
-    freeOpts(opts);
+    // freeOpts(opts);
 
     return rv;
 }
