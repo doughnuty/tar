@@ -73,6 +73,7 @@ int checkName (char* name)
         return 2;
     else return 1;
 }
+
 char* appendName(char* initial, char* appendable) // Add to the name (path or file)
 {
     int inLength = getLength(initial);
@@ -117,6 +118,7 @@ int getArchfd(char* archname, bool is_create)
     int flags;
     const mode_t DEFAULT_CREAT_MODE = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 
+	// have to add check for extract or not?
     if(is_create)
         flags = O_CREAT | O_WRONLY | O_TRUNC;
     else
@@ -133,6 +135,7 @@ struct Options getOpts(int argc, char *argv[]) /* Parse options, opens tar file 
                                                 // if with t or x, change the archname in struct Options
                                                 // if error occured return nonzero integer
                                                 */
+// crashed when I wrote 2 files, я криворукий или тут не хэндлится пока?
 {
     char *file;
     struct Options *opts = clear();
@@ -161,7 +164,7 @@ struct Options getOpts(int argc, char *argv[]) /* Parse options, opens tar file 
                             opts -> error += 1;
                             return opts[0];
                         }
-                        if(checkName(argv[i+1]) == 0)
+                        //if(checkName(argv[i+1]) == 0)
                             opts->path = argv[i+1];
                         i++;
                         }
@@ -185,6 +188,7 @@ struct Options getOpts(int argc, char *argv[]) /* Parse options, opens tar file 
             file = argv[i];
             if(opts->path != NULL)
                 file = appendName(opts->path, file);
+		// если не прописать -cf, то крашится
             if (checkName(file) < 2)
             {
                 opts->files[num] = file;
