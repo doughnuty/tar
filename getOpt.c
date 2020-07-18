@@ -39,7 +39,8 @@ static void print_options(struct Options *options ) // Testing function to check
     printf( "===================================\n" );
 }
 
-size_t getLength(const char *str){
+size_t getLength(const char *str)
+{
     size_t length = 0;
     while (*str++) length++;
 
@@ -58,10 +59,6 @@ struct Options *clear(void)
     opts -> error = 0;
     return opts;
 }
-
-//void listContents(char** files); // Called if -t parameter passed
-
-//bool checkOpts(struct Options opts, int err); // Checks whether options were appropriately written
 
 int checkName (char* name)
 {
@@ -111,28 +108,32 @@ int error(int errnum) // Print the error message
     }
     return 1;
 }
-int getArchfd(char* archname, bool is_create)
+int getArchfd(char* archname, bool is_create, bool is_empty)
 {
     int fd_archive;
     int flags;
     const mode_t DEFAULT_CREAT_MODE = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 
-    if(is_create)
+    if(is_create && !is_empty)
         flags = O_CREAT | O_WRONLY | O_TRUNC;
+    else if(is_create && is_empty)
+        {
+            printf("tar: No files to archive.\n");
+            return -1;
+        }
     else
-        flags = O_WRONLY;
+        flags = O_RDONLY;
 
     fd_archive = open(archname, flags, DEFAULT_CREAT_MODE);
 
     return fd_archive;
 }
-struct Options getOpts(int argc, char *argv[]) /* Parse options, opens tar file if exists and writes file names
+struct Options *getOpts(int argc, char *argv[]) /* Parse options, opens tar file if exists and writes file names
                                                 // if -f correctly specified, address createTar to get archfd
                                                 // otherwise print error message
                                                 // if -C is given with c, r, or u, append to all the following files path name
                                                 // if with t or x, change the archname in struct Options
-                                                // if error occured return nonzero integer
-                                                */
+                                                // if error occured return nonzero integer */
 {
     char *file;
     struct Options *opts = clear();
@@ -148,7 +149,7 @@ struct Options getOpts(int argc, char *argv[]) /* Parse options, opens tar file 
                         if(opts->mod != 0) {
                             printf("Please specify only one of the following: crtux\n");
                             opts -> error += 1;
-                            return opts[0];
+                            return opts;
                         }
                         opts -> mod = argv[i][j];
                         }
@@ -159,7 +160,7 @@ struct Options getOpts(int argc, char *argv[]) /* Parse options, opens tar file 
                         {
                             error(1);
                             opts -> error += 1;
-                            return opts[0];
+                            return opts;
                         }
                         if(checkName(argv[i+1]) == 0)
                             opts->path = argv[i+1];
@@ -172,9 +173,9 @@ struct Options getOpts(int argc, char *argv[]) /* Parse options, opens tar file 
                         {
                             error(1);
                             opts -> error += 1;
-                            return opts[0];
+                            return opts;
                         }
-                        //if(checkName(argv[i+1]) == 1)
+                        checkName(argv[i+1]);
                         opts->archname = argv[i+1];
                         i++;
                         }
@@ -185,7 +186,7 @@ struct Options getOpts(int argc, char *argv[]) /* Parse options, opens tar file 
             file = argv[i];
             if(opts->path != NULL)
                 file = appendName(opts->path, file);
-            if (checkName(file) < 2)
+            if (checkName(file) < 2 || opts->mod == 'x')
             {
                 opts->files[num] = file;
                 opts->fcount++;
@@ -196,7 +197,7 @@ struct Options getOpts(int argc, char *argv[]) /* Parse options, opens tar file 
                 printf("%s: ", file);
                 error(2);
                 opts -> error += 1;
-                return opts[0];
+                return opts;
             }
         }
     }
@@ -206,8 +207,10 @@ struct Options getOpts(int argc, char *argv[]) /* Parse options, opens tar file 
         printf("tar: Refusing to read archive contents from terminal (missing -f option?)\n");
         opts -> error += 1;
     }
-    else opts->archfd = getArchfd(opts->archname, opts->mod == 'c');
-    return opts[0];
+    else opts->archfd = getArchfd(opts->archname, opts->mod == 'c', opts->fcount == 0);
+    if (opts->archfd == -1)
+        opts->error += 1;
+    return opts;
 }
 
 //void freeOpts (struct Options); // deletes memory allocated
