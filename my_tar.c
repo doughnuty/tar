@@ -6,29 +6,24 @@
 #include "my_tar.h"
 int main(int argc, char *argv[]){
     int rv = 0; // return value
-    struct Options opts = getOpts(argc, argv); // get the options, set the fd (file descr) of the atchive
+    if(argc < 2)
+    {
+        printf("No arguments specified. Abandoning\n");
+        return 1;
+    }
+    struct Options *opts = getOpts(argc, argv); // get the options, set the fd (file descr) of the archive
+    rv += opts->error;
     if(rv > 0)
     {
-        printf("Error processing the arguments.\n");
+        printf("Error processing the arguments. Abandoning\n");
         return 1;
     }
 
-    if (opts.create)
-    {
-        rv += create(opts.archfd, opts.files); // Create tar based on its file descriptor and fill with the contents
-    }
+    rv += fManip(opts[0]);
 
-    else if (opts.extract)
-    {
-        rv += extract(opts.archfd, opts.files); // Create files based on their headers
-    }
-
-    else if (opts.list)
-    {
-        rv += list(opts.archfd, opts.files); // List tar contents
-    }
-
-    freeOpts(opts);
+    //freeOpts(opts);
+    free(opts->files);
+    free(opts);
 
     return rv;
 }
